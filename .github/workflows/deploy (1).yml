@@ -1,0 +1,48 @@
+name: Recompute analytics (Python)
+
+# Matches the repo's current tree (data/, scripts/, site/). On any data or
+# engine edit: run Python, regenerate BOTH site/data/analytics.json and the
+# self-contained root index.html, commit them back to main. GitHub Pages
+# (Deploy from a branch: main / root) republishes automatically.
+# Rendering depends on exactly one file: /index.html.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/**"
+      - "scripts/**"
+      - "site/assets/**"
+      - "site/index.html"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analytics
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install analytics dependencies
+        run: pip install pandas numpy circlify
+
+      - name: Run Python analytics engine
+        run: python scripts/build_analytics.py
+
+      - name: Commit regenerated dashboard
+        run: |
+          git config user.name "analytics-bot"
+          git config user.email "actions@github.com"
+          git add index.html site/data/analytics.json
+          git diff --cached --quiet || git commit -m "Recompute analytics [skip ci]"
+          git push
