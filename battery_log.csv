@@ -1,0 +1,2 @@
+timestamp,voltage_v,soc_pct,soh_pct,temp_c,est_range_km,signal,network
+2026-08-02 21:08,83.0,99,100,35,138,20,4G

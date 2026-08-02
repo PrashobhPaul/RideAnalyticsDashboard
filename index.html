@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RV400 · Floodlight Telemetry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="wordmark">RV400 · <em>Floodlight Telemetry</em></div>
+    <div class="stamp" id="stamp">building…</div>
+  </header>
+
+  <!-- Signature: the floodlit odometer -->
+  <section class="hero">
+    <div>
+      <div class="odometer-label">Lifetime odometer</div>
+      <div class="odometer"><span id="odo">0</span><small>km</small></div>
+      <p class="hero-sub" id="hero-sub">Every ride, charge and rupee — pulled from the Revolt app’s numbers, recomputed by Python on each data edit.</p>
+    </div>
+    <div class="hero-side">
+      <div class="hero-stat"><b id="hs-soc">–</b><span>Battery SOC</span></div>
+      <div class="hero-stat"><b id="hs-range">–</b><span>Est. range</span></div>
+      <div class="hero-stat"><b id="hs-soh">–</b><span>State of health</span></div>
+      <div class="hero-stat"><b id="hs-due">–</b><span>km to service</span></div>
+    </div>
+  </section>
+
+  <div class="seed-note" id="seed-note" hidden></div>
+
+  <!-- Filter rail -->
+  <nav class="rail" aria-label="Filters">
+    <div class="rail-rows">
+      <div class="chip-row">
+        <span class="rail-label">Range</span>
+        <button class="chip preset" data-preset="30">30D</button>
+        <button class="chip preset" data-preset="90">90D</button>
+        <button class="chip preset" data-preset="ytd">YTD</button>
+        <button class="chip preset" data-preset="365">1Y</button>
+        <button class="chip preset on" data-preset="all">All</button>
+        <input type="date" id="f-from" aria-label="From date">
+        <input type="date" id="f-to" aria-label="To date">
+        <span class="count" id="f-count"></span>
+      </div>
+      <div class="chip-row">
+        <span class="rail-label">Mode</span>
+        <button class="chip mode-eco on" data-mode="eco">Eco</button>
+        <button class="chip mode-city on" data-mode="city">City</button>
+        <button class="chip mode-sport on" data-mode="sport">Sport</button>
+        <span class="rail-label">Ride</span>
+        <button class="chip size on" data-size="short">&lt;5 km</button>
+        <button class="chip size on" data-size="medium">5–20</button>
+        <button class="chip size on" data-size="long">20+</button>
+        <span class="rail-label">Days</span>
+        <button class="chip day on" data-day="all">All</button>
+        <button class="chip day" data-day="weekday">Wkday</button>
+        <button class="chip day" data-day="weekend">Wkend</button>
+        <span class="rail-label">By</span>
+        <button class="chip gran" data-gran="day">Day</button>
+        <button class="chip gran on" data-gran="week">Week</button>
+        <button class="chip gran" data-gran="month">Month</button>
+        <button class="chip" id="f-reset">Reset ✕</button>
+      </div>
+    </div>
+  </nav>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="grid">
+    <div class="chart-card"><h3>Battery gauges</h3><div id="g-gauges" class="plot short"></div></div>
+    <div class="chart-card"><h3>Service due</h3><p class="hint" id="svc-hint"></p><div id="g-svc-gauge" class="plot short"></div></div>
+  </div>
+
+  <div class="eyebrow"><span class="tag">01</span><h2>Rides over time</h2><div class="rule"></div></div>
+  <div class="grid">
+    <div class="chart-card span2"><h3>Distance ridden <span id="gran-echo"></span></h3><div id="g-daily" class="plot"></div></div>
+    <div class="chart-card span2"><h3>Cumulative odometer, milestones &amp; 12-month projection</h3><div id="g-cum" class="plot"></div></div>
+    <div class="chart-card"><h3>Monthly kilometres — press play</h3><div id="g-monthly" class="plot"></div></div>
+    <div class="chart-card"><h3>Riding calendar</h3><p class="hint">Week-by-week heat, darker = more km.</p><div id="g-cal" class="plot"></div></div>
+  </div>
+
+  <div class="eyebrow"><span class="tag">02</span><h2>Patterns &amp; distributions</h2><div class="rule"></div></div>
+  <div class="grid">
+    <div class="chart-card"><h3>When you ride — day × hour</h3><div id="g-dowhour" class="plot"></div></div>
+    <div class="chart-card"><h3>Ride-length distribution</h3><div id="g-hist" class="plot"></div></div>
+    <div class="chart-card"><h3>Speed by dominant mode</h3><div id="g-violin" class="plot"></div></div>
+    <div class="chart-card"><h3>Rider profile — filtered vs all-time</h3><div id="g-radar" class="plot"></div></div>
+    <div class="chart-card span2"><h3>Every ride — date × distance, bubble = duration</h3><div id="g-bubble" class="plot"></div></div>
+    <div class="chart-card"><h3>Speed vs distance, with trendline</h3><div id="g-scatter" class="plot"></div></div>
+    <div class="chart-card"><h3>3D ride space — distance × duration × speed</h3><p class="hint">Auto-rotates. Drag to take over.</p><div id="g-3d" class="plot"></div></div>
+  </div>
+
+  <div class="eyebrow"><span class="tag">03</span><h2>Shape of the data</h2><div class="rule"></div></div>
+  <p class="section-sub">The RAW Graphs family — streamgraph, bump, alluvial, sunburst, circle packing, dendrogram (as icicle) — plus surface and waterfall.</p>
+  <div class="grid">
+    <div class="chart-card span2"><h3>Streamgraph — monthly km by ride mode</h3><div id="g-stream" class="plot"></div></div>
+    <div class="chart-card"><h3>Bump chart — mode rank by month</h3><div id="g-bump" class="plot"></div></div>
+    <div class="chart-card"><h3>Alluvial / Sankey — year → mode flow</h3><div id="g-sankey" class="plot"></div></div>
+    <div class="chart-card"><h3>Sunburst — year → month → mode</h3><div id="g-sunburst" class="plot tall"></div></div>
+    <div class="chart-card"><h3>Circle packing — rides inside months</h3><p class="hint">Circle area = km. Packed by Python (circlify).</p><div id="g-pack" class="plot tall"></div></div>
+    <div class="chart-card"><h3>Icicle — year → quarter → month</h3><div id="g-icicle" class="plot"></div></div>
+    <div class="chart-card"><h3>Treemap — months by distance</h3><div id="g-treemap" class="plot"></div></div>
+    <div class="chart-card"><h3>Waterfall — how months build the total</h3><div id="g-waterfall" class="plot"></div></div>
+    <div class="chart-card"><h3>3D terrain — day × hour ride density</h3><div id="g-surface" class="plot tall"></div></div>
+  </div>
+
+  <div class="eyebrow"><span class="tag">04</span><h2>Energy, money &amp; carbon</h2><div class="rule"></div></div>
+  <div class="grid">
+    <div class="chart-card span2"><h3>Cumulative savings — rupees &amp; CO₂ vs a 45 km/L petrol bike</h3><div id="g-savings" class="plot"></div></div>
+    <div class="chart-card"><h3>Energy drawn by mode</h3><div id="g-energy" class="plot"></div></div>
+    <div class="chart-card"><h3>Cost per month — charging vs petrol equivalent</h3><div id="g-cost" class="plot"></div></div>
+  </div>
+
+  <div class="eyebrow"><span class="tag">05</span><h2>Battery &amp; service</h2><div class="rule"></div></div>
+  <div class="grid">
+    <div class="chart-card"><h3>Battery diagnostics over time</h3><p class="hint">Grows as you append to battery_log.csv after each in-app diagnostics run.</p><div id="g-battery" class="plot"></div></div>
+    <div class="chart-card"><h3>Service history on the odometer curve</h3><div id="g-service" class="plot"></div></div>
+  </div>
+
+  <div class="eyebrow"><span class="tag">06</span><h2>Map</h2><div class="rule"></div></div>
+  <div class="grid">
+    <div class="chart-card span2"><h3>Home, dealer, geo-fence &amp; ride starts</h3><p class="hint" id="map-hint"></p><div id="g-map" class="plot tall"></div></div>
+  </div>
+
+  <div class="eyebrow"><span class="tag">07</span><h2>Ride log</h2><div class="rule"></div></div>
+  <div class="table-card">
+    <table id="ride-table"><thead></thead><tbody></tbody></table>
+    <div class="table-actions">
+      <span class="pager" id="pager"></span>
+      <span>
+        <button class="btn" id="pg-prev">‹ Prev</button>
+        <button class="btn" id="pg-next">Next ›</button>
+        <button class="btn" id="csv-btn">Download filtered CSV</button>
+      </span>
+    </div>
+  </div>
+
+  <footer class="colophon">
+    Analytics computed in <span class="mono">Python (pandas · numpy · circlify)</span> by GitHub Actions →
+    rendered with Plotly on GitHub Pages. Edit <span class="mono">data/rides.csv</span> in the GitHub web editor;
+    the site rebuilds itself. Cost &amp; CO₂ figures are estimates from <span class="mono">data/config.json</span>.
+  </footer>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>

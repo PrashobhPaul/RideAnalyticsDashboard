@@ -1,0 +1,34 @@
+{
+  "bike": {
+    "model": "Revolt RV400",
+    "chassis_masked": "MZMB\u2022\u2022\u2022\u2022\u2022\u2022\u20220205",
+    "battery_kwh": 3.24,
+    "nominal_voltage": 72,
+    "purchase_date": "2023-06-01",
+    "claimed_range_km": { "eco": 150, "city": 100, "sport": 80 },
+    "efficiency_wh_per_km": { "eco": 22, "city": 32, "sport": 41 }
+  },
+  "economics": {
+    "currency": "INR",
+    "electricity_rate_per_kwh": 8.0,
+    "petrol_price_per_litre": 106.0,
+    "petrol_bike_kmpl": 45.0,
+    "petrol_co2_kg_per_litre": 2.30,
+    "grid_co2_kg_per_kwh": 0.71,
+    "tree_kg_co2_per_year": 21.0
+  },
+  "service": {
+    "interval_km": 3000,
+    "interval_months": 6
+  },
+  "locations": {
+    "_note": "Coordinates are intentionally coarse (~1 km). GitHub Pages sites are PUBLIC \u2014 keep it that way or use a private repo.",
+    "home":   { "label": "Home \u00b7 Nacharam", "lat": 17.43, "lon": 78.57 },
+    "dealer": { "label": "Membi Motors (edit coords)", "lat": 17.44, "lon": 78.50 },
+    "geofence_radius_km": 5
+  },
+  "dashboard": {
+    "title": "RV400 \u00b7 Floodlight Telemetry",
+    "milestones_km": [500, 1000, 2000, 3000, 5000, 7500, 10000]
+  }
+}
