@@ -1,0 +1,48 @@
+name: Recompute analytics (Python)
+
+# Runs whenever ride/battery/service/config data or the engine changes,
+# recomputes analytics.json with Python, and commits it back to main.
+# GitHub Pages (Deploy from a branch: main / root) then republishes automatically.
+# No Pages settings change required.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rides.csv"
+      - "services.csv"
+      - "battery_log.csv"
+      - "config.json"
+      - "build_analytics.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analytics
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install analytics dependencies
+        run: pip install pandas numpy circlify
+
+      - name: Run Python analytics engine
+        run: python build_analytics.py
+
+      - name: Commit refreshed analytics.json
+        run: |
+          git config user.name "analytics-bot"
+          git config user.email "actions@github.com"
+          git add analytics.json
+          git diff --cached --quiet || git commit -m "Recompute analytics [skip ci]"
+          git push
