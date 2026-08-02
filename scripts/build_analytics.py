@@ -3,7 +3,7 @@
 RV400 Floodlight Telemetry - analytics builder.
 
 Reads  : data/rides.csv, data/services.csv, data/battery_log.csv, data/config.json
-Writes : site/data/analytics.json  (consumed by the static dashboard)
+Writes : site/data/analytics.json  AND  a self-contained index.html at repo root
 
 Runs inside GitHub Actions (see .github/workflows/deploy.yml). Pure Python is the
 analytics brain: every derived metric, matrix, and pre-shaped structure the
@@ -293,6 +293,44 @@ payload = {
     "packing": packing,
 }
 
-(OUT / "analytics.json").write_text(json.dumps(payload, separators=(",", ":")))
-print(f"analytics.json written - {len(rides_out)} rides, {len(packing)} packed circles, "
-      f"{kpis['total_km']} km, saved INR {kpis['saved_inr']:.0f}, CO2 {kpis['co2_saved_kg']} kg")
+payload_json = json.dumps(payload, separators=(",", ":"))
+(OUT / "analytics.json").write_text(payload_json)
+
+# --------------------------------------------------------------------------- #
+# Emit the self-contained dashboard: ROOT/index.html with CSS, JS and data
+# inlined. Rendering then depends on exactly one file - immune to path,
+# fetch, and Pages-mode issues. A fetch shim answers "analytics.json"
+# requests from the embedded payload, so any app.js version works unmodified.
+# --------------------------------------------------------------------------- #
+site = ROOT / "site"
+html = (site / "index.html").read_text()
+css = (site / "assets" / "style.css").read_text()
+js = (site / "assets" / "app.js").read_text()
+
+css_inline = "<style>\n" + css + "\n</style>"
+replaced = False
+for marker in ('<link rel="stylesheet" href="assets/style.css">',
+               '<link rel="stylesheet" href="style.css">'):
+    if marker in html:
+        html = html.replace(marker, css_inline)
+        replaced = True
+        break
+assert replaced, "stylesheet marker not found in site/index.html"
+
+shim = ("<script>window.__EMBEDDED=" + payload_json.replace("</", "<\\/") + ";"
+        "const __of=window.fetch;"
+        "window.fetch=(u,...a)=>(typeof u==='string'&&u.indexOf('analytics.json')>-1)"
+        "?Promise.resolve({ok:true,json:async()=>window.__EMBEDDED}):__of(u,...a);"
+        "</script>")
+js_inline = shim + "\n<script>\n" + js.replace("</", "<\\/") + "\n</script>"
+replaced = False
+for marker in ('<script src="assets/app.js"></script>', '<script src="app.js"></script>'):
+    if marker in html:
+        html = html.replace(marker, js_inline)
+        replaced = True
+        break
+assert replaced, "app script marker not found in site/index.html"
+
+(ROOT / "index.html").write_text(html)
+print(f"analytics.json + standalone index.html written - {len(rides_out)} rides, "
+      f"{kpis['total_km']} km, index.html {len(html)//1024} KB")
